@@ -7,6 +7,11 @@ from nltk.stem.porter import PorterStemmer
 
 ps = PorterStemmer()
 
+nltk.download('punkt_tab')
+
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('omw-1.4')
 def transform_text(text):
     text = text.lower()
     text = nltk.word_tokenize(text)
