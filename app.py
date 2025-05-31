@@ -1,107 +1,78 @@
 import streamlit as st
-import pickle
-import string
+import os
 import nltk
 from nltk.corpus import stopwords
-from nltk.stem.porter import PorterStemmer
-import os # Import os for path configuration
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
+import string
+import joblib
 
-# --- NLTK Data Management ---
-# Define a custom NLTK data path that is likely persistent in deployment environments.
-# For Streamlit Cloud, the default /app/nltk_data is often a good choice.
-# For local development, it will create 'nltk_data' in the current directory.
-NLTK_DATA_PATH = os.path.join(os.getcwd(), "nltk_data")
-if NLTK_DATA_PATH not in nltk.data.path:
-    nltk.data.path.append(NLTK_DATA_PATH)
+# 1. NLTK Resource Setup: ensure required corpora are in a local nltk_data directory
+nltk_data_dir = os.path.join(os.getcwd(), "resources", "nltk_data")
+os.makedirs(nltk_data_dir, exist_ok=True)
+nltk.data.path.append(nltk_data_dir)  # add local directory to NLTK data path
 
-# Use st.cache_resource to download NLTK data only once per app deployment.
-# This prevents repeated downloads on every app rerun, improving performance and reliability.
-@st.cache_resource
-def download_nltk_data():
-    try:
-        # Removed 'punkt_tab' as it's not a standalone downloadable package.
-        # 'punkt' is the correct package for tokenization, and its integrity is key.
-        # 'omw-1.4' is a dependency for 'wordnet' in newer NLTK versions.
-        st.info(f"Checking NLTK data in: {NLTK_DATA_PATH}")
-        nltk.download('punkt', download_dir=NLTK_DATA_PATH, quiet=True)
-        nltk.download('stopwords', download_dir=NLTK_DATA_PATH, quiet=True)
-        nltk.download('wordnet', download_dir=NLTK_DATA_PATH, quiet=True)
-        nltk.download('omw-1.4', download_dir=NLTK_DATA_PATH, quiet=True)
-        st.success("NLTK data ensured successfully!")
-    except Exception as e:
-        st.error(f"Failed to download NLTK data: {e}. Please check your internet connection, permissions, or NLTK data path.")
-        st.stop() # Stop the app if essential data cannot be downloaded
+# Download needed NLTK resources if not already present (avoids repeated downloads)
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', download_dir=nltk_data_dir)
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords', download_dir=nltk_data_dir)
+try:
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    nltk.download('wordnet', download_dir=nltk_data_dir)
+try:
+    nltk.data.find('corpora/omw-1.4')
+except LookupError:
+    nltk.download('omw-1.4', download_dir=nltk_data_dir)
 
-download_nltk_data() # Execute the download function
+# 2. Load the pre-trained model and TF-IDF vectorizer
+#    Assumes 'model.pkl' and 'vectorizer.pkl' are in the same directory as this script
+model = joblib.load("model.pkl")
+vectorizer = joblib.load("vectorizer.pkl")
 
-# Initialize PorterStemmer after NLTK data is ensured
-ps = PorterStemmer()
+# 3. Define text preprocessing function using NLTK (lowercasing, tokenizing, stopwords removal, stemming)
+stemmer = PorterStemmer()
+stop_words = set(stopwords.words("english"))
 
-# --- Text Transformation Function ---
-def transform_text(text):
+
+def preprocess_text(text):
+    """
+    Lowercase, tokenize, remove non-alphabetic tokens,
+    filter out stopwords, and apply Porter stemming.
+    """
     text = text.lower()
-    text = nltk.word_tokenize(text) # This is where 'punkt' is utilized
+    tokens = word_tokenize(text)
+    cleaned_tokens = []
+    for token in tokens:
+        # Keep alphabetic tokens only and remove stopwords
+        if token.isalpha() and token not in stop_words:
+            cleaned_tokens.append(stemmer.stem(token))
+    return " ".join(cleaned_tokens)
 
-    y =[]
-    for i in text:
-        if i.isalnum():
-            y.append(i)
 
-    text = y[:]
-    y.clear()
+# 4. Streamlit App Interface
+st.set_page_config(page_title="Spam Classifier")
+st.title("Spam Classification App")
+st.write("Enter a message below to check if it is **spam** or **not spam**:")
 
-    # Ensure stopwords are loaded before use.
-    # It's good practice to load this once if possible, but here it's fine.
-    stop_words = set(stopwords.words('english'))
-    for i in text:
-        if i not in stop_words and i not in string.punctuation:
-            y.append(i)
+input_text = st.text_area("Message:", height=150)
 
-    text = y[:]
-    y.clear()
-
-    for i in text:
-        y.append(ps.stem(i))
-
-    return " ".join(y)
-
-# --- Model and Vectorizer Loading ---
-# Use st.cache_resource to load models only once per app deployment.
-# This caches the loaded objects in memory, preventing repeated disk I/O.
-@st.cache_resource
-def load_resources():
-    try:
-        # Load the trained vectorizer and model
-        # Ensure 'vectorizer.pkl' and 'model.pkl' are in the same directory as the script
-        tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
-        model = pickle.load(open('model.pkl', 'rb'))
-        return tfidf, model
-    except FileNotFoundError:
-        st.error("Model or vectorizer files not found. Please ensure 'vectorizer.pkl' and 'model.pkl' are in the same directory as the app.")
-        st.stop() # Stop the app if essential files are missing
-    except Exception as e:
-        st.error(f"Failed to load model resources: {e}")
-        st.stop()
-
-tfidf, model = load_resources() # Execute the model loading function
-
-# --- Streamlit UI ---
-st.title("Email/SMS Spam Classifier")
-
-input_sms = st.text_area("Enter the message")
-
-if st.button('Predict'):
-    # 1. Preprocess
-    transformed_sms = transform_text(input_sms)
-
-    # 2. Vectorize
-    vector_input = tfidf.transform([transformed_sms])
-
-    # 3. Predict
-    result = model.predict(vector_input)
-
-    # 4. Display
-    if result == 1:
-        st.header("Spam")
+if st.button("Classify"):
+    if not input_text.strip():
+        st.warning("Please enter a message to classify.")
     else:
-        st.header("Not Spam")
+        # Preprocess the input and make prediction
+        processed = preprocess_text(input_text)
+        vector_input = vectorizer.transform([processed])
+        prediction = model.predict(vector_input)[0]
+
+        # Display result (use colored messages for clarity)
+        if prediction == 1:
+            st.error("This message is **SPAM**.")
+        else:
+            st.success("This message is **NOT SPAM**.")
