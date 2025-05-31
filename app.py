@@ -6,9 +6,7 @@ from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 
 ps = PorterStemmer()
-
 nltk.download('punkt_tab')
-
 nltk.download('punkt')
 nltk.download('wordnet')
 nltk.download('omw-1.4')
