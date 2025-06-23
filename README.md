@@ -34,6 +34,6 @@ A machine learning project that classifies SMS messages as **Spam** or **Ham (No
 
 ## Screenshot
 
-![App Screenshot](image1.jpg)
-![App Screenshot](image2.jpg)
+![App Screenshot](image1.png)
+![App Screenshot](image2.png)
    
