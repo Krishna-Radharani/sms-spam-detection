@@ -31,3 +31,9 @@ A machine learning project that classifies SMS messages as **Spam** or **Ham (No
    ```bash
    git clone https://github.com/krishna-Radharani/sms-spam-detection.git
    cd sms-spam-detector
+
+## Screenshot
+
+![App Screenshot](image1.jpg)
+![App Screenshot](image2.jpg)
+   
