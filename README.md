@@ -1,6 +1,8 @@
 # 📱 SMS Spam Detection
 
 A machine learning project that classifies SMS messages as **Spam** or **Ham (Not Spam)** using NLP techniques and supervised learning algorithms. Achieved **98% accuracy** on the test set.
+> 🚀 **Live Demo**: [Click to Try It Out](https://sms-spam-detection-wm8sfldmvfj4yqggupelmv.streamlit.app/)
+
 
 ---
 
